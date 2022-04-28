@@ -16,6 +16,8 @@
 
 #if NETSTANDARD2_0 || NET461
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -37,7 +39,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
     private readonly IReadOnlyDictionary<string, object> m_prepopulatedFields;
     private readonly List<string> m_prepopulatedFieldKeys;
     private static readonly ThreadLocal<byte[]> m_buffer = new ThreadLocal<byte[]>(() => null);
-    private static readonly ThreadLocal<char[]> categoryNameCharArrTLS = new();
+    private static readonly ConcurrentDictionary<string, string> m_sanitizedEventNames = new();
     private readonly byte[] m_bufferEpilogue;
     private static readonly string[] logLevels = new string[7]
     {
@@ -222,51 +224,13 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         }
         else if (this.shouldPassThruTableMappings && eventName == null)
         {
-            Span<char> tempArrSpan = new Span<char>(categoryNameCharArrTLS.Value = name.ToCharArray());
-            int readIdx = 0;
-            int writeIdx = 0;
-            while (readIdx < name.Length)
+            if (!m_sanitizedEventNames.TryGetValue(name, out eventName))
             {
-                if (readIdx == 0)
+                eventName = SanitizeName(name);
+                if (m_sanitizedEventNames.Count < 1024)
                 {
-                    if (name[readIdx] >= 'A' && name[readIdx] <= 'Z')
-                    {
-                        tempArrSpan[writeIdx] = name[readIdx];
-                        ++writeIdx;
-                    }
-                    else if (name[readIdx] >= 'a' && name[readIdx] <= 'z')
-                    {
-                        // If the first character in the resulting string is lower -case ALPHA,
-                        // it will be converted to the corresponding upper-case.
-                        tempArrSpan[writeIdx] = (char)(name[readIdx] - 32);
-                        ++writeIdx;
-                    }
-
-                    // Not a valid name - Part B name should follow PascalCase naming convention.
-                    else
-                    {
-                        break;
-                    }
+                    m_sanitizedEventNames.TryAdd(name, eventName);
                 }
-
-                // The category name must match "^[A-Z][a-zA-Z0-9]*$"; any character that is not allowed will be removed.
-                else if ((name[readIdx] >= '0' && name[readIdx] <= '9') ||
-                        (name[readIdx] >= 'A' && name[readIdx] <= 'Z') ||
-                        (name[readIdx] >= 'a' && name[readIdx] <= 'z'))
-                {
-                    tempArrSpan[writeIdx] = name[readIdx];
-                    ++writeIdx;
-                }
-
-                ++readIdx;
-            }
-
-            // After removing not allowed characters,
-            // if the resulting string is still an illegal Part B name, the data will get dropped on the floor.
-            if (readIdx == name.Length && writeIdx != 0)
-            {
-                // If the resulting string is longer than 32 characters, only the first 32 characters will be taken.
-                eventName = tempArrSpan.Slice(0, writeIdx <= 31 ? writeIdx : 32).ToString();
             }
         }
 
@@ -470,6 +434,75 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         Buffer.BlockCopy(this.m_bufferEpilogue, 0, buffer, cursor, this.m_bufferEpilogue.Length);
         cursor += this.m_bufferEpilogue.Length;
         return cursor;
+    }
+
+    private static string SanitizeName(string name)
+    {
+        char[] buffer = null;
+        Span<char> tempArrSpan = name.Length < 128
+            ? stackalloc char[128]
+            : buffer = ArrayPool<char>.Shared.Rent(name.Length);
+        try
+        {
+            int readIdx = 0;
+            int writeIdx = 0;
+            while (readIdx < name.Length)
+            {
+                var character = name[readIdx];
+                if (!char.IsSurrogate(character))
+                {
+                    break;
+                }
+
+                if (readIdx == 0)
+                {
+                    if (character >= 'A' && character <= 'Z')
+                    {
+                        tempArrSpan[writeIdx] = character;
+                        ++writeIdx;
+                    }
+                    else if (character >= 'a' && character <= 'z')
+                    {
+                        // If the first character in the resulting string is lower -case ALPHA,
+                        // it will be converted to the corresponding upper-case.
+                        tempArrSpan[writeIdx] = (char)(character - 32);
+                        ++writeIdx;
+                    }
+                    else
+                    {
+                        // Not a valid name - Part B name should follow PascalCase naming convention.
+                        break;
+                    }
+                }
+                else if ((character >= '0' && character <= '9') ||
+                        (character >= 'A' && character <= 'Z') ||
+                        (character >= 'a' && character <= 'z'))
+                {
+                    // The category name must match "^[A-Z][a-zA-Z0-9]*$"; any character that is not allowed will be removed.
+                    tempArrSpan[writeIdx] = character;
+                    ++writeIdx;
+                }
+
+                ++readIdx;
+            }
+
+            // After removing not allowed characters,
+            // if the resulting string is still an illegal Part B name, the data will get dropped on the floor.
+            if (readIdx == name.Length && writeIdx != 0)
+            {
+                // If the resulting string is longer than 32 characters, only the first 32 characters will be taken.
+                return tempArrSpan.Slice(0, writeIdx <= 31 ? writeIdx : 32).ToString();
+            }
+        }
+        finally
+        {
+            if (buffer != null)
+            {
+                ArrayPool<char>.Shared.Return(buffer);
+            }
+        }
+
+        return null;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
