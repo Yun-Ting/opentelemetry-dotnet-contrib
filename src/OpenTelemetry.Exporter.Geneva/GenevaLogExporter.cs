@@ -198,7 +198,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         get => this.m_dataTransport is UnixDomainSocketDataTransport;
     }
 
-    internal int SerializeLogRecord(LogRecord logRecord)
+    public int SerializeLogRecord(LogRecord logRecord)
     {
         IReadOnlyList<KeyValuePair<string, object>> listKvp;
         if (logRecord.State == null)
