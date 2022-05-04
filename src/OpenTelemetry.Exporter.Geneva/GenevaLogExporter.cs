@@ -214,31 +214,6 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
             listKvp = logRecord.State as IReadOnlyList<KeyValuePair<string, object>>;
         }
 
-        var categoryName = logRecord.CategoryName;
-
-        // If user configured explicit TableName, use it.
-        if (this.m_tableMappings == null || (!this.m_tableMappings.TryGetValue(categoryName, out var eventName) && !this.shouldPassThruTableMappings))
-        {
-            eventName = this.m_defaultEventName;
-        }
-        else if (this.shouldPassThruTableMappings && eventName == null)
-        {
-            if (!rawNameToSanitizedName.TryGetValue(categoryName, out var sanitizedName))
-            {
-                eventName = Sanitize(categoryName);
-
-                // TODO: how to determine the right cap for the size here?
-                if (rawNameToSanitizedName.Count <= 1024)
-                {
-                    rawNameToSanitizedName.TryAdd(categoryName, eventName);
-                }
-            }
-            else
-            {
-                eventName = sanitizedName;
-            }
-        }
-
         var buffer = m_buffer.Value;
         if (buffer == null)
         {
@@ -269,7 +244,71 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         var timestamp = logRecord.Timestamp;
         var cursor = 0;
         cursor = MessagePackSerializer.WriteArrayHeader(buffer, cursor, 3);
-        cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
+
+        var categoryName = logRecord.CategoryName;
+
+        // If user configured explicit TableName, use it.
+        if (this.m_tableMappings == null || (!this.m_tableMappings.TryGetValue(categoryName, out var eventName) && !this.shouldPassThruTableMappings))
+        {
+            eventName = this.m_defaultEventName;
+            cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
+        }
+        else if (this.shouldPassThruTableMappings && eventName == null)
+        {
+            int readIdx = 0;
+            int cursorStartIdx = cursor;
+
+            int curSubStringStartIdx = 0;
+            int curSubStringLength = 0;
+            while (readIdx < categoryName.Length)
+            {
+                // Recommended by Part B that table name should not be longer than 50 characters.
+                if (cursor - cursorStartIdx >= 100)
+                {
+                    break;
+                }
+
+                var cur = categoryName[readIdx];
+
+                // The category name must match "^[A-Z][a-zA-Z0-9]*$";
+                // any character that is not allowed will be removed.
+                if ((cur >= '0' && cur <= '9') ||
+                    (cur >= 'A' && cur <= 'Z') ||
+                    (cur >= 'a' && cur <= 'z'))
+                {
+                    ++curSubStringLength;
+                }
+                else
+                {
+                    cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, categoryName.Substring(curSubStringStartIdx, readIdx - curSubStringStartIdx));
+                    curSubStringStartIdx = readIdx + 1;
+                }
+
+                ++readIdx;
+            }
+
+            if (curSubStringStartIdx != readIdx + 1)
+            {
+                cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, categoryName.Substring(curSubStringStartIdx, readIdx - curSubStringStartIdx));
+            }
+
+            if (cursor - cursorStartIdx != 0)
+            {
+                byte[] result = new byte[cursor - cursorStartIdx];
+                Array.Copy(buffer, cursorStartIdx, result, 0, cursor - cursorStartIdx);
+                eventName = result.ToString();
+            }
+            else
+            {
+                eventName = null;
+            }
+        }
+        else
+        {
+            // Event name is defined in the user passed in config.
+            cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
+        }
+
         cursor = MessagePackSerializer.WriteArrayHeader(buffer, cursor, 1);
         cursor = MessagePackSerializer.WriteArrayHeader(buffer, cursor, 2);
         cursor = MessagePackSerializer.SerializeUtcDateTime(buffer, cursor, timestamp);
