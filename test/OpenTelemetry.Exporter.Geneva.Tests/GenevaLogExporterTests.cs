@@ -222,7 +222,7 @@ namespace OpenTelemetry.Exporter.Geneva.Tests
             for (int i = 0; i < 7; ++i)
             {
                 // The category name must match "^[A-Z][a-zA-Z0-9]*$"; any character that is not allowed will be removed.
-                expectedCategoryToTableNameList.Add(new KeyValuePair<string, string>("Com.Cu.EEE.FFF", "ComCuCCCEEEFFF"));
+                expectedCategoryToTableNameList.Add(new KeyValuePair<string, string>("cC.CC.BB", "CCCCBB"));
             }
 
             var logRecordList = new List<LogRecord>();

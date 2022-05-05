@@ -253,55 +253,44 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
             eventName = this.m_defaultEventName;
             cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
         }
-        else if (this.shouldPassThruTableMappings && eventName == null)
+        else if (this.shouldPassThruTableMappings && eventName == null && categoryName.Length > 0)
         {
-            int readIdx = 0;
-            int cursorStartIdx = cursor;
+            int validNameLength = 0;
+            int categoryStartIdx = cursor;
+            cursor += 1;
 
-            int curSubStringStartIdx = 0;
-            int curSubStringLength = 0;
-            while (readIdx < categoryName.Length)
+            // Special treatment for the first character.
+
+            var firstChar = categoryName[0]; // special treatment for the first character.
+            if (firstChar >= 'A' && firstChar <= 'Z')
             {
-                // Recommended by Part B that table name should not be longer than 50 characters.
-                if (cursor - cursorStartIdx >= 100)
+                cursor = MessagePackSerializer.SerializeCategoryName(buffer, cursor, firstChar.ToString());
+                ++validNameLength;
+            }
+            else if (firstChar >= 'a' && firstChar <= 'z')
+            {
+                // If the first character in the resulting string is lower-case ALPHA,
+                // it will be converted to the corresponding upper-case.
+                cursor = MessagePackSerializer.SerializeCategoryName(buffer, cursor, ((char)(firstChar - 32)).ToString());
+                ++validNameLength;
+            }
+
+            for (int i = 1; i < categoryName.Length; ++i)
+            {
+                var cur = categoryName[i];
+
+                if ((cur >= '0' && cur <= '9') || (cur >= 'A' && cur <= 'Z') || (cur >= 'a' && cur <= 'z'))
                 {
-                    break;
+                    cursor = MessagePackSerializer.SerializeCategoryName(buffer, cursor, cur.ToString());
+                    ++validNameLength;
                 }
-
-                var cur = categoryName[readIdx];
-
-                // The category name must match "^[A-Z][a-zA-Z0-9]*$";
-                // any character that is not allowed will be removed.
-                if ((cur >= '0' && cur <= '9') ||
-                    (cur >= 'A' && cur <= 'Z') ||
-                    (cur >= 'a' && cur <= 'z'))
-                {
-                    ++curSubStringLength;
-                }
-                else
-                {
-                    cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, categoryName.Substring(curSubStringStartIdx, readIdx - curSubStringStartIdx));
-                    curSubStringStartIdx = readIdx + 1;
-                }
-
-                ++readIdx;
             }
 
-            if (curSubStringStartIdx != readIdx + 1)
-            {
-                cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, categoryName.Substring(curSubStringStartIdx, readIdx - curSubStringStartIdx));
-            }
-
-            if (cursor - cursorStartIdx != 0)
-            {
-                byte[] result = new byte[cursor - cursorStartIdx];
-                Array.Copy(buffer, cursorStartIdx, result, 0, cursor - cursorStartIdx);
-                eventName = result.ToString();
-            }
-            else
-            {
-                eventName = null;
-            }
+            MessagePackSerializer.BackFill(buffer, categoryStartIdx, validNameLength);
+        }
+        else if (categoryName.Length == 0)
+        {
+            eventName = null;
         }
         else
         {
