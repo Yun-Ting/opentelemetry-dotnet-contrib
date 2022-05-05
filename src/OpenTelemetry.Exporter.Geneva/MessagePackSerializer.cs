@@ -307,16 +307,10 @@ internal static class MessagePackSerializer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int SerializeCategoryName(byte[] buffer, int cursor, string value)
+    public static void BackFill(byte[] buffer, int nameStartIdx, int validNameLength)
     {
-        cursor += Encoding.ASCII.GetBytes(value, 0, 1, buffer, cursor);
-        return cursor;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void BackFill(byte[] buffer, int categoryStartIdx, int validNameLength)
-    {
-        buffer[categoryStartIdx] = unchecked((byte)(MIN_FIX_STR | validNameLength));
+        buffer[nameStartIdx] = STR8;
+        buffer[nameStartIdx + 1] = unchecked((byte)validNameLength);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

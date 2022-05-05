@@ -242,28 +242,9 @@ namespace OpenTelemetry.Exporter.Geneva.Tests
             // Create a test exporter to get MessagePack byte data to validate if the data was serialized correctly.
             using var exporter = new GenevaLogExporter(exporterOptions);
 
-            ILogger passThruTableMappingsLogger, userInitializedTableMappingsLogger;
+            ILogger passThruTableMappingsLogger;
             ThreadLocal<byte[]> m_buffer;
             object fluentdData;
-            string actualTableName;
-
-            //// Verify that the category table mappings specified by the users in the Geneva Configuration are mapped correctly.
-            //foreach (var mapping in userInitializedCategoryToTableNameMappings)
-            //{
-            //    if (mapping.Key != "*")
-            //    {
-            //        userInitializedTableMappingsLogger = loggerFactory.CreateLogger(mapping.Key);
-            //        userInitializedTableMappingsLogger.LogInformation("This information does not matter.");
-            //        Assert.Single(logRecordList);
-            //        m_buffer = typeof(GenevaLogExporter).GetField("m_buffer", BindingFlags.NonPublic | BindingFlags.Static).GetValue(exporter) as ThreadLocal<byte[]>;
-            //        _ = exporter.SerializeLogRecord(logRecordList[0]);
-            //        fluentdData = MessagePack.MessagePackSerializer.Deserialize<object>(m_buffer.Value, MessagePack.Resolvers.ContractlessStandardResolver.Instance);
-            //        actualTableName = (fluentdData as object[])[0] as string;
-            //        userInitializedCategoryToTableNameMappings.TryGetValue(mapping.Key, out var expectedTableNme);
-            //        Assert.Equal(expectedTableNme, actualTableName);
-            //        logRecordList.Clear();
-            //    }
-            //}
 
             // Verify that when the "*" = "*" were enabled, the correct table names were being deduced following the set of rules.
             foreach (var mapping in expectedCategoryToTableNameList)
@@ -283,7 +264,7 @@ namespace OpenTelemetry.Exporter.Geneva.Tests
                     expectedTableName = mapping.Value;
                 }
 
-                //Assert.Equal(expectedTableName, actualTableName);
+                // Assert.Equal(expectedTableName, actualTableName);
                 logRecordList.Clear();
             }
         }

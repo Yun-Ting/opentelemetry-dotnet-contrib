@@ -16,7 +16,6 @@
 
 #if NETSTANDARD2_0 || NET461
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -45,7 +44,6 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
     };
 
     private readonly IDataTransport m_dataTransport;
-    private static readonly ConcurrentDictionary<string, string> rawNameToSanitizedName = new();
     private bool isDisposed;
     private bool shouldPassThruTableMappings;
     private Func<object, string> convertToJson;
@@ -256,22 +254,22 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         else if (this.shouldPassThruTableMappings && eventName == null && categoryName.Length > 0)
         {
             int validNameLength = 0;
-            int categoryStartIdx = cursor;
-            cursor += 1;
+            int categoryNameStartIdx = cursor;
+            cursor += 2;
 
             // Special treatment for the first character.
 
             var firstChar = categoryName[0]; // special treatment for the first character.
             if (firstChar >= 'A' && firstChar <= 'Z')
             {
-                cursor = MessagePackSerializer.SerializeCategoryName(buffer, cursor, firstChar.ToString());
+                buffer[cursor++] = (byte)firstChar;
                 ++validNameLength;
             }
             else if (firstChar >= 'a' && firstChar <= 'z')
             {
                 // If the first character in the resulting string is lower-case ALPHA,
                 // it will be converted to the corresponding upper-case.
-                cursor = MessagePackSerializer.SerializeCategoryName(buffer, cursor, ((char)(firstChar - 32)).ToString());
+                buffer[cursor++] = (byte)(firstChar - 32);
                 ++validNameLength;
             }
 
@@ -281,12 +279,12 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
 
                 if ((cur >= '0' && cur <= '9') || (cur >= 'A' && cur <= 'Z') || (cur >= 'a' && cur <= 'z'))
                 {
-                    cursor = MessagePackSerializer.SerializeCategoryName(buffer, cursor, cur.ToString());
+                    buffer[cursor++] = (byte)cur;
                     ++validNameLength;
                 }
             }
 
-            MessagePackSerializer.BackFill(buffer, categoryStartIdx, validNameLength);
+            MessagePackSerializer.BackFill(buffer, categoryNameStartIdx, validNameLength);
         }
         else if (categoryName.Length == 0)
         {
