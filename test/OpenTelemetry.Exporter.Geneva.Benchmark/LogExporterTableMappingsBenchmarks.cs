@@ -40,8 +40,8 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
     public class LogExporterTableMappingsBenchmarks
     {
         private readonly ILoggerFactory loggerFactory;
-        private readonly ILogger storeALogger;
-        private readonly ILogger storeBLogger;
+        private readonly List<ILogger> uniqueLoggers = new(100);
+        private readonly List<ILogger> identicalLoggers = new(100);
 
         public LogExporterTableMappingsBenchmarks()
         {
@@ -68,20 +68,33 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
                 });
             });
 
-            this.storeALogger = this.loggerFactory.CreateLogger("Company.StoreA");
-            this.storeBLogger = this.loggerFactory.CreateLogger("Company.StoreB");
+            for (int i = 0; i < 100; ++i)
+            {
+                this.uniqueLoggers[i] = this.loggerFactory.CreateLogger("Company.Store" + (i + 100).ToString());
+            }
+
+            for (int i = 0; i < 100; ++i)
+            {
+                this.identicalLoggers[i] = this.loggerFactory.CreateLogger("Company.Store100");
+            }
         }
 
         [Benchmark]
-        public void CategoryTableNameMappingsDefinedInConfiguration()
+        public void CacheVersionWhenTheRuleIsEnabledNohitCache()
         {
-            this.storeALogger.LogInformation("Hello from {storeName} {number}.", "Tokyo", 6);
+            for (int i = 0; i < 100; ++i)
+            {
+                this.uniqueLoggers[i].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
+            }
         }
 
         [Benchmark]
-        public void PassThruTableNameMappingsWhenTheRuleIsEnbled()
+        public void CacheVersionWhenTheRuleIsEnabledhitCache()
         {
-            this.storeBLogger.LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
+            for (int i = 0; i < 100; ++i)
+            {
+                this.identicalLoggers[i].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
+            }
         }
     }
 }

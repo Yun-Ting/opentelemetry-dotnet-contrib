@@ -16,6 +16,7 @@
 
 #if NETSTANDARD2_0 || NET461
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -37,6 +38,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
     private readonly IReadOnlyDictionary<string, object> m_prepopulatedFields;
     private readonly List<string> m_prepopulatedFieldKeys;
     private static readonly ThreadLocal<byte[]> m_buffer = new ThreadLocal<byte[]>(() => null);
+    private static readonly ConcurrentDictionary<string, string> implicitTableMappings = new();
     private readonly byte[] m_bufferEpilogue;
     private static readonly string[] logLevels = new string[7]
     {
@@ -261,19 +263,26 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         }
         else if (categoryName.Length > 0)
         {
-            int cursorStartIdx = cursor;
-            cursor = SanitizeCategoryName(buffer, cursor, ref cursorStartIdx, ref validNameLength, categoryName);
-            if (validNameLength > 0)
+            if (!implicitTableMappings.TryGetValue(categoryName, out eventName))
             {
-                data = stackalloc byte[validNameLength + 2];
-                for (int i = 0; i < validNameLength + 2; i++)
+                int cursorStartIdx = cursor;
+                cursor = SanitizeCategoryName(buffer, cursor, ref cursorStartIdx, ref validNameLength, categoryName);
+                if (validNameLength > 0)
                 {
-                    data[i] = buffer[cursorStartIdx + i];
+                    data = stackalloc byte[validNameLength + 2];
+                    for (int i = 0; i < validNameLength + 2; i++)
+                    {
+                        data[i] = buffer[cursorStartIdx + i];
+                    }
+                }
+                else
+                {
+                    cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
                 }
             }
             else
             {
-                cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
+                cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
             }
         }
         else
