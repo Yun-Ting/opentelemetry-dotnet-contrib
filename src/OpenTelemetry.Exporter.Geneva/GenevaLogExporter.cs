@@ -288,7 +288,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
                         cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
                     }
 
-                    if (implicitTableMappings.Count <= 1024)
+                    if (implicitTableMappings.Count <= 10000)
                     {
                         if (data != default)
                         {

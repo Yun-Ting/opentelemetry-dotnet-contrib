@@ -28,17 +28,17 @@ Intel Xeon CPU E5-1650 v4 3.60GHz, 1 CPU, 12 logical and 6 physical cores
   DefaultJob : .NET 6.0.5 (6.0.522.21309), X64 RyuJIT
 
 
-|                                      Method |  size |         Mean |        Error |       StdDev |    Gen 0 | Allocated |
-|-------------------------------------------- |------ |-------------:|-------------:|-------------:|---------:|----------:|
-|          NoCacheVersionWhenTheRuleIsEnabled |   100 |     99.59 us |     1.949 us |     2.796 us |   3.1738 |     25 KB |
-| CacheVersionWhenTheRuleIsEnabledUniqueNames |   100 |     95.53 us |     1.886 us |     3.098 us |   3.1738 |     25 KB |
-|    CacheVersionWhenTheRuleIsEnabledhitCache |   100 |     95.10 us |     1.724 us |     2.180 us |   3.1738 |     25 KB |
-|          NoCacheVersionWhenTheRuleIsEnabled |  1000 |    994.11 us |    19.304 us |    22.231 us |  32.2266 |    250 KB |
-| CacheVersionWhenTheRuleIsEnabledUniqueNames |  1000 |    945.03 us |    18.442 us |    25.244 us |  32.2266 |    250 KB |
-|    CacheVersionWhenTheRuleIsEnabledhitCache |  1000 |  1,124.59 us |    22.334 us |    35.424 us |  31.2500 |    250 KB |
-|          NoCacheVersionWhenTheRuleIsEnabled | 10000 | 11,574.85 us |   227.957 us |   312.030 us | 312.5000 |  2,500 KB |
-| CacheVersionWhenTheRuleIsEnabledUniqueNames | 10000 | 64,148.69 us | 1,267.462 us | 2,317.626 us | 250.0000 |  2,500 KB |
-|    CacheVersionWhenTheRuleIsEnabledhitCache | 10000 |  9,513.01 us |   189.406 us |   360.365 us | 312.5000 |  2,500 KB |
+|                                      Method |  size |         Mean |      Error |     StdDev |    Gen 0 | Allocated |
+|-------------------------------------------- |------ |-------------:|-----------:|-----------:|---------:|----------:|
+|          NoCacheVersionWhenTheRuleIsEnabled |   100 |    112.82 us |   2.213 us |   2.799 us |   3.1738 |     25 KB |
+| CacheVersionWhenTheRuleIsEnabledUniqueNames |   100 |     95.98 us |   1.877 us |   1.928 us |   3.1738 |     25 KB |
+|    CacheVersionWhenTheRuleIsEnabledhitCache |   100 |    114.04 us |   1.922 us |   2.630 us |   3.1738 |     25 KB |
+|          NoCacheVersionWhenTheRuleIsEnabled |  1000 |  1,007.65 us |  14.043 us |  11.726 us |  31.2500 |    250 KB |
+| CacheVersionWhenTheRuleIsEnabledUniqueNames |  1000 |    994.79 us |  19.802 us |  22.804 us |  31.2500 |    250 KB |
+|    CacheVersionWhenTheRuleIsEnabledhitCache |  1000 |    964.31 us |  17.544 us |  16.410 us |  32.2266 |    250 KB |
+|          NoCacheVersionWhenTheRuleIsEnabled | 10000 | 10,481.03 us | 194.034 us | 278.277 us | 312.5000 |  2,500 KB |
+| CacheVersionWhenTheRuleIsEnabledUniqueNames | 10000 | 10,644.58 us | 207.145 us | 254.393 us | 312.5000 |  2,500 KB |
+|    CacheVersionWhenTheRuleIsEnabledhitCache | 10000 |  9,494.76 us | 184.736 us | 282.111 us | 312.5000 |  2,500 KB |
 
 */
 
