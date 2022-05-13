@@ -87,7 +87,6 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
                         exporterOptions.TableNameMappings = new Dictionary<string, string>
                         {
                             ["*"] = "*",
-                            ["cacheEnabled"] = "true",
                         };
                     });
                 });
