@@ -217,11 +217,14 @@ namespace OpenTelemetry.Exporter.Geneva.Tests
                 ["Company.Store"] = "Store",
                 ["Company.Orders"] = "Orders",
                 ["*"] = "*",
+                ["cacheEnabled"] = "true",
             };
 
             var expectedCategoryToTableNameList = new List<KeyValuePair<string, string>>
             {
                 // The category name must match "^[A-Z][a-zA-Z0-9]*$"; any character that is not allowed will be removed.
+                new KeyValuePair<string, string>("Company.Customer", "CompanyCustomer"),
+
                 new KeyValuePair<string, string>("Company.Customer", "CompanyCustomer"),
 
                 new KeyValuePair<string, string>("Company-%-Customer*Region$##", "CompanyCustomerRegion"),

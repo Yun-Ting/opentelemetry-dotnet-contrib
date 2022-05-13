@@ -16,6 +16,7 @@
 
 #if NETSTANDARD2_0 || NET461
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -37,6 +38,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
     private readonly IReadOnlyDictionary<string, object> m_prepopulatedFields;
     private readonly List<string> m_prepopulatedFieldKeys;
     private static readonly ThreadLocal<byte[]> m_buffer = new ThreadLocal<byte[]>(() => null);
+    private static readonly ConcurrentDictionary<string, string> implicitTableMappings = new();
     private readonly byte[] m_bufferEpilogue;
     private static readonly string[] logLevels = new string[7]
     {
@@ -45,6 +47,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
 
     private readonly IDataTransport m_dataTransport;
     private readonly bool shouldPassThruTableMappings;
+    private readonly bool useImplicitTableMappgings;
     private bool isDisposed;
     private Func<object, string> convertToJson;
 
@@ -78,6 +81,11 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
                 else
                 {
                     tempTableMappings[kv.Key] = kv.Value;
+                }
+
+                if (kv.Key == "cacheEnabled" && kv.Value == "true")
+                {
+                    this.useImplicitTableMappgings = true;
                 }
             }
 
@@ -261,19 +269,58 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         }
         else if (categoryName.Length > 0)
         {
-            int cursorStartIdx = cursor;
-            cursor = SanitizeCategoryName(buffer, cursor, ref validNameLength, categoryName);
-            if (validNameLength > 0)
+            if (this.useImplicitTableMappgings)
             {
-                data = buffer.AsSpan().Slice(cursorStartIdx, validNameLength + 2);
-                for (int i = 0; i < validNameLength + 2; i++)
+                if (!implicitTableMappings.TryGetValue(categoryName, out eventName))
                 {
-                    data[i] = buffer[cursorStartIdx + i];
+                    int cursorStartIdx = cursor;
+                    cursor = SanitizeCategoryName(buffer, cursor, ref validNameLength, categoryName);
+                    if (validNameLength > 0)
+                    {
+                        data = buffer.AsSpan().Slice(cursorStartIdx, validNameLength + 2);
+                        for (int i = 0; i < validNameLength + 2; i++)
+                        {
+                            data[i] = buffer[cursorStartIdx + i];
+                        }
+                    }
+                    else
+                    {
+                        cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
+                    }
+
+                    if (implicitTableMappings.Count <= 10000)
+                    {
+                        if (data != default)
+                        {
+                            implicitTableMappings.TryAdd(categoryName, Encoding.ASCII.GetString(data.Slice(2, validNameLength).ToArray()));
+                        }
+                        else
+                        {
+                            implicitTableMappings.TryAdd(categoryName, null);
+                        }
+                    }
+                }
+                else
+                {
+                    cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
                 }
             }
             else
             {
-                cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
+                int cursorStartIdx = cursor;
+                cursor = SanitizeCategoryName(buffer, cursor, ref validNameLength, categoryName);
+                if (validNameLength > 0)
+                {
+                    data = buffer.AsSpan().Slice(cursorStartIdx, validNameLength + 2);
+                    for (int i = 0; i < validNameLength + 2; i++)
+                    {
+                        data[i] = buffer[cursorStartIdx + i];
+                    }
+                }
+                else
+                {
+                    cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
+                }
             }
         }
         else
