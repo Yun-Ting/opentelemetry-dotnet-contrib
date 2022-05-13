@@ -278,10 +278,6 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
                     if (validNameLength > 0)
                     {
                         data = buffer.AsSpan().Slice(cursorStartIdx, validNameLength + 2);
-                        for (int i = 0; i < validNameLength + 2; i++)
-                        {
-                            data[i] = buffer[cursorStartIdx + i];
-                        }
                     }
                     else
                     {

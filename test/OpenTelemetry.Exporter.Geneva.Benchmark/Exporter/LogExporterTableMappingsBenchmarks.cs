@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 
+using System;
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
@@ -125,6 +126,9 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
             {
                 this.uniqueLoggersConfiguredWithCache[i].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
             }
+
+            Random random = new Random();
+            this.uniqueLoggersConfiguredNoCache[random.Next(1, size)].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
         }
 
         [Benchmark]
