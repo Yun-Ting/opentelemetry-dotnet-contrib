@@ -29,18 +29,11 @@ Intel Xeon CPU E5-1650 v4 3.60GHz, 1 CPU, 12 logical and 6 physical cores
   DefaultJob : .NET 6.0.5 (6.0.522.21309), X64 RyuJIT
 
 
-|                                      Method |  size |         Mean |      Error |     StdDev |    Gen 0 | Allocated |
-|-------------------------------------------- |------ |-------------:|-----------:|-----------:|---------:|----------:|
-|          NoCacheVersionWhenTheRuleIsEnabled |   100 |    112.82 us |   2.213 us |   2.799 us |   3.1738 |     25 KB |
-| CacheVersionWhenTheRuleIsEnabledUniqueNames |   100 |     95.98 us |   1.877 us |   1.928 us |   3.1738 |     25 KB |
-|    CacheVersionWhenTheRuleIsEnabledhitCache |   100 |    114.04 us |   1.922 us |   2.630 us |   3.1738 |     25 KB |
-|          NoCacheVersionWhenTheRuleIsEnabled |  1000 |  1,007.65 us |  14.043 us |  11.726 us |  31.2500 |    250 KB |
-| CacheVersionWhenTheRuleIsEnabledUniqueNames |  1000 |    994.79 us |  19.802 us |  22.804 us |  31.2500 |    250 KB |
-|    CacheVersionWhenTheRuleIsEnabledhitCache |  1000 |    964.31 us |  17.544 us |  16.410 us |  32.2266 |    250 KB |
-|          NoCacheVersionWhenTheRuleIsEnabled | 10000 | 10,481.03 us | 194.034 us | 278.277 us | 312.5000 |  2,500 KB |
-| CacheVersionWhenTheRuleIsEnabledUniqueNames | 10000 | 10,644.58 us | 207.145 us | 254.393 us | 312.5000 |  2,500 KB |
-|    CacheVersionWhenTheRuleIsEnabledhitCache | 10000 |  9,494.76 us | 184.736 us | 282.111 us | 312.5000 |  2,500 KB |
-
+|                                              Method |         Mean |      Error |     StdDev |   Gen 0 | Allocated |
+|---------------------------------------------------- |-------------:|-----------:|-----------:|--------:|----------:|
+|     CategoryTableNameMappingsDefinedInConfiguration |     1.135 us |  0.0226 us |  0.0302 us |  0.0324 |     256 B |
+|        PassThruTableNameMappingsWhenTheRuleIsEnbled |     1.199 us |  0.0239 us |  0.0378 us |  0.0324 |     256 B |
+| PassThruTableNameMappingsWhenTheRuleIsEnbledNoCache | 2,549.623 us | 49.8186 us | 80.4478 us | 62.5000 | 512,003 B |
 */
 
 namespace OpenTelemetry.Exporter.Geneva.Benchmark
@@ -48,97 +41,73 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
     [MemoryDiagnoser]
     public class LogExporterTableMappingsBenchmarks
     {
-        private static readonly int maxCapactiy = 10000;
-        private readonly ILoggerFactory loggerFactoryNoCache;
-        private readonly ILoggerFactory loggerFactoryWithCache;
-        private readonly List<ILogger> uniqueLoggersConfiguredNoCache = new(maxCapactiy);
-        private readonly List<ILogger> uniqueLoggersConfiguredWithCache = new(maxCapactiy);
-        private readonly List<ILogger> identicalLoggersConfiguredWithCache = new(maxCapactiy);
+        private readonly ILoggerFactory loggerFactory;
+        private readonly ILogger storeALogger;
+        private readonly ILogger storeBLogger;
+
+        private static readonly int maxCapacity = 1000;
+        private static int sequenceSize = maxCapacity * 2;
+        private readonly List<ILogger> loggers = new(maxCapacity);
+        private Random random = new Random(97);
+        private int[] sequence = new int[sequenceSize];
 
         public LogExporterTableMappingsBenchmarks()
         {
-            this.loggerFactoryNoCache = LoggerFactory.Create(builder =>
+            this.loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.AddOpenTelemetry(loggerOptions =>
                 {
                     loggerOptions.AddGenevaLogExporter(exporterOptions =>
                     {
                         exporterOptions.ConnectionString = "EtwSession=OpenTelemetry";
+                        exporterOptions.PrepopulatedFields = new Dictionary<string, object>
+                        {
+                            ["cloud.role"] = "BusyWorker",
+                            ["cloud.roleInstance"] = "CY1SCH030021417",
+                            ["cloud.roleVer"] = "9.0.15289.2",
+                        };
+
                         exporterOptions.TableNameMappings = new Dictionary<string, string>
                         {
+                            ["Company.StoreA"] = "Store",
                             ["*"] = "*",
                         };
                     });
                 });
             });
 
-            for (int i = 0; i < maxCapactiy; ++i)
+            this.storeALogger = this.loggerFactory.CreateLogger("Company.StoreA");
+            this.storeBLogger = this.loggerFactory.CreateLogger("Company.StoreB");
+
+            for (int i = 0; i < maxCapacity; ++i)
             {
-                this.uniqueLoggersConfiguredNoCache.Add(this.loggerFactoryNoCache.CreateLogger("Company-%-Customer*Region$##" + (i + maxCapactiy).ToString()));
+                this.loggers.Add(this.loggerFactory.CreateLogger("Company-%-Customer*Region$##" + (i + maxCapacity).ToString()));
             }
 
-            this.loggerFactoryWithCache = LoggerFactory.Create(builder =>
+            for (int i = 0; i < sequenceSize; ++i)
             {
-                builder.AddOpenTelemetry(loggerOptions =>
-                {
-                    loggerOptions.AddGenevaLogExporter(exporterOptions =>
-                    {
-                        exporterOptions.ConnectionString = "EtwSession=OpenTelemetry";
-                        exporterOptions.TableNameMappings = new Dictionary<string, string>
-                        {
-                            ["*"] = "*",
-                        };
-                    });
-                });
-            });
-
-            for (int i = 0; i < maxCapactiy; ++i)
-            {
-                this.uniqueLoggersConfiguredWithCache.Add(this.loggerFactoryWithCache.CreateLogger("Company-%-Customer*Region$##" + (i + maxCapactiy).ToString()));
-            }
-
-            for (int i = 0; i < maxCapactiy; ++i)
-            {
-                this.identicalLoggersConfiguredWithCache.Add(this.loggerFactoryWithCache.CreateLogger("Company-%-Customer*Region$##100000"));
+                this.sequence[i] = this.random.Next(0, maxCapacity);
             }
         }
 
         [Benchmark]
-        [Arguments(100)]
-        [Arguments(1000)]
-        [Arguments(10000)]
-        public void NoCacheVersionWhenTheRuleIsEnabled(int size)
+        public void CategoryTableNameMappingsDefinedInConfiguration()
         {
-            for (int i = 0; i < size; ++i)
-            {
-                this.uniqueLoggersConfiguredNoCache[i].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
-            }
+            this.storeALogger.LogInformation("Hello from {storeName} {number}.", "Tokyo", 6);
         }
 
         [Benchmark]
-        [Arguments(100)]
-        [Arguments(1000)]
-        [Arguments(10000)]
-        public void CacheVersionWhenTheRuleIsEnabledUniqueNames(int size)
+        public void PassThruTableNameMappingsWhenTheRuleIsEnbled()
         {
-            for (int i = 0; i < size; ++i)
-            {
-                this.uniqueLoggersConfiguredWithCache[i].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
-            }
-
-            Random random = new Random();
-            this.uniqueLoggersConfiguredNoCache[random.Next(1, size)].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
+            this.storeBLogger.LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
         }
 
         [Benchmark]
-        [Arguments(100)]
-        [Arguments(1000)]
-        [Arguments(10000)]
-        public void CacheVersionWhenTheRuleIsEnabledhitCache(int size)
+        public void PassThruTableNameMappingsWhenTheRuleIsEnbledNoCache()
         {
-            for (int i = 0; i < size; ++i)
+            for (int i = 0; i < this.sequence.Length; ++i)
             {
-                this.identicalLoggersConfiguredWithCache[i].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
+                this.loggers[this.sequence[i]].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
             }
         }
     }

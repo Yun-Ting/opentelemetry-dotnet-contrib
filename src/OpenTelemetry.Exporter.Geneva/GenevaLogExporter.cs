@@ -47,7 +47,6 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
 
     private readonly IDataTransport m_dataTransport;
     private readonly bool shouldPassThruTableMappings;
-    private readonly bool useImplicitTableMappgings;
     private bool isDisposed;
     private Func<object, string> convertToJson;
 
@@ -81,11 +80,6 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
                 else
                 {
                     tempTableMappings[kv.Key] = kv.Value;
-                }
-
-                if (kv.Key == "cacheEnabled" && kv.Value == "true")
-                {
-                    this.useImplicitTableMappgings = true;
                 }
             }
 
@@ -269,54 +263,34 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         }
         else if (categoryName.Length > 0)
         {
-            if (this.useImplicitTableMappgings)
-            {
-                if (!implicitTableMappings.TryGetValue(categoryName, out eventName))
-                {
-                    int cursorStartIdx = cursor;
-                    cursor = SanitizeCategoryName(buffer, cursor, ref validNameLength, categoryName);
-                    if (validNameLength > 0)
-                    {
-                        data = buffer.AsSpan().Slice(cursorStartIdx, validNameLength + 2);
-                    }
-                    else
-                    {
-                        cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
-                    }
-
-                    if (implicitTableMappings.Count <= 10000)
-                    {
-                        if (data != default)
-                        {
-                            implicitTableMappings.TryAdd(categoryName, Encoding.ASCII.GetString(data.Slice(2, validNameLength).ToArray()));
-                        }
-                        else
-                        {
-                            implicitTableMappings.TryAdd(categoryName, null);
-                        }
-                    }
-                }
-                else
-                {
-                    cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
-                }
-            }
-            else
+            if (!implicitTableMappings.TryGetValue(categoryName, out eventName))
             {
                 int cursorStartIdx = cursor;
                 cursor = SanitizeCategoryName(buffer, cursor, ref validNameLength, categoryName);
                 if (validNameLength > 0)
                 {
                     data = buffer.AsSpan().Slice(cursorStartIdx, validNameLength + 2);
-                    for (int i = 0; i < validNameLength + 2; i++)
-                    {
-                        data[i] = buffer[cursorStartIdx + i];
-                    }
                 }
                 else
                 {
                     cursor = MessagePackSerializer.SerializeNull(buffer, cursor);
                 }
+
+                if (implicitTableMappings.Count <= 10000)
+                {
+                    if (data != default)
+                    {
+                        implicitTableMappings.TryAdd(categoryName, Encoding.ASCII.GetString(data.Slice(2, validNameLength).ToArray()));
+                    }
+                    else
+                    {
+                        implicitTableMappings.TryAdd(categoryName, null);
+                    }
+                }
+            }
+            else
+            {
+                cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, eventName);
             }
         }
         else
@@ -363,7 +337,7 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
         }
 
         // Part A - core envelope
-        if (!data.IsEmpty)
+        if (data != default)
         {
             cursor = AddPartAField(buffer, cursor, Schema.V40.PartA.Name, data, validNameLength + 2);
         }

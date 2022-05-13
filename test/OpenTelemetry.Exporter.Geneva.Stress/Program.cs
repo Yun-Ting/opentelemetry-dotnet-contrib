@@ -108,6 +108,10 @@ namespace OpenTelemetry.Exporter.Geneva.Stress
 
         private static int EntryPoint()
         {
+            int maxCapacity = 1000;
+            Random random = new Random(97);
+            List<ILogger> loggers = new(maxCapacity);
+
             var cntLoopsTotal = 0UL;
             var dLoopsPerSecond = 0D;
             var dCpuCyclesPerLoop = 0D;
@@ -135,7 +139,10 @@ namespace OpenTelemetry.Exporter.Geneva.Stress
                 });
             });
 
-            var storeBLogger = loggerFactory.CreateLogger("Company.StoreB");
+            for (int i = 0; i < maxCapacity; ++i)
+            {
+                loggers.Add(loggerFactory.CreateLogger("Company-%-Customer*Region$##" + (i + maxCapacity).ToString()));
+            }
 
             var statistics = new long[Environment.ProcessorCount];
             var watchForTotal = Stopwatch.StartNew();
@@ -204,7 +211,7 @@ namespace OpenTelemetry.Exporter.Geneva.Stress
                     statistics[i] = 0;
                     while (s_bContinue)
                     {
-                        storeBLogger.LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
+                        loggers[random.Next(0, maxCapacity)].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
                         statistics[i]++;
                     }
                 });
