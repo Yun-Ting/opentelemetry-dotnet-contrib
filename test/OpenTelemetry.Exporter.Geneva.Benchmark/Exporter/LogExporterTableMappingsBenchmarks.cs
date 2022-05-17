@@ -49,7 +49,6 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
         private static int sequenceSize = maxCapacity * 2;
         private readonly List<ILogger> loggers = new(maxCapacity);
         private Random random = new Random(97);
-        private int[] sequence = new int[sequenceSize];
 
         public LogExporterTableMappingsBenchmarks()
         {
@@ -83,17 +82,12 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
             {
                 this.loggers.Add(this.loggerFactory.CreateLogger("Company-%-Customer*Region$##" + (i + maxCapacity).ToString()));
             }
-
-            for (int i = 0; i < sequenceSize; ++i)
-            {
-                this.sequence[i] = this.random.Next(0, maxCapacity);
-            }
         }
 
         [Benchmark]
         public void CategoryTableNameMappingsDefinedInConfiguration()
         {
-            this.storeALogger.LogInformation("Hello from {storeName} {number}.", "Tokyo", 6);
+            this.storeALogger.LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
         }
 
         [Benchmark]
@@ -103,12 +97,9 @@ namespace OpenTelemetry.Exporter.Geneva.Benchmark
         }
 
         [Benchmark]
-        public void PassThruTableNameMappingsWhenTheRuleIsEnbledNoCache()
+        public void PassThruTableNameMappingsWhenTheRuleIsEnbledWithCache()
         {
-            for (int i = 0; i < this.sequence.Length; ++i)
-            {
-                this.loggers[this.sequence[i]].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
-            }
+            this.loggers[this.random.Next(0, maxCapacity)].LogInformation("Hello from {storeName} {number}.", "Kyoto", 2);
         }
     }
 }
