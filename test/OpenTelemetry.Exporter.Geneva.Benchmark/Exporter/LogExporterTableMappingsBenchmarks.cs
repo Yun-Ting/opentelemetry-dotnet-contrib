@@ -22,18 +22,18 @@ using Microsoft.Extensions.Logging;
 /*
 // * Summary *
 
-BenchmarkDotNet=v0.13.1, OS=Windows 10.0.19044.1706 (21H2)
-Intel Xeon CPU E5-1650 v4 3.60GHz, 1 CPU, 12 logical and 6 physical cores
-.NET SDK=6.0.203
+BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000
+11th Gen Intel Core i7-1185G7 3.00GHz, 1 CPU, 8 logical and 4 physical cores
+.NET SDK=6.0.300
   [Host]     : .NET 6.0.5 (6.0.522.21309), X64 RyuJIT
   DefaultJob : .NET 6.0.5 (6.0.522.21309), X64 RyuJIT
 
 
-|                                              Method |         Mean |      Error |     StdDev |   Gen 0 | Allocated |
-|---------------------------------------------------- |-------------:|-----------:|-----------:|--------:|----------:|
-|     CategoryTableNameMappingsDefinedInConfiguration |     1.135 us |  0.0226 us |  0.0302 us |  0.0324 |     256 B |
-|        PassThruTableNameMappingsWhenTheRuleIsEnbled |     1.199 us |  0.0239 us |  0.0378 us |  0.0324 |     256 B |
-| PassThruTableNameMappingsWhenTheRuleIsEnbledNoCache | 2,549.623 us | 49.8186 us | 80.4478 us | 62.5000 | 512,003 B |
+|                                                Method |     Mean |    Error |   StdDev |  Gen 0 | Allocated |
+|------------------------------------------------------ |---------:|---------:|---------:|-------:|----------:|
+|       CategoryTableNameMappingsDefinedInConfiguration | 736.8 ns | 14.64 ns | 22.36 ns | 0.0401 |     256 B |
+|          PassThruTableNameMappingsWhenTheRuleIsEnbled | 743.4 ns | 11.87 ns | 15.84 ns | 0.0401 |     256 B |
+| PassThruTableNameMappingsWhenTheRuleIsEnbledWithCache | 831.9 ns | 15.85 ns | 16.96 ns | 0.0401 |     256 B |
 */
 
 namespace OpenTelemetry.Exporter.Geneva.Benchmark
